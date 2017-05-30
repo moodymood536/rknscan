@@ -18,6 +18,7 @@ import colorama
 from termcolor import colored
 from queue import Queue, Empty
 from requests.exceptions import ConnectionError
+import datetime
 
 colorama.init()
 parser = OptionParser()
@@ -78,17 +79,12 @@ if not options.console:
     timeout = 3 if not timeout else int(timeout)
     n_threads = 500 if not n_threads else int(n_threads)
 
-dns_records_list = {"gelbooru.com": ['5.178.68.100'],
-                    "e621.net": ['162.159.243.197', '162.159.244.197'],
-                    "sukebei.nyaa.se": ['69.165.95.242'],
+dns_records_list = {"e621.net": ['162.159.243.197', '162.159.244.197'],
                     "2chru.net": ['162.159.251.219', '198.41.249.219']}
 
 dpi_list =   {'rutracker.org':
                 {'host': 'rutracker.org', 'urn': '/forum/index.php',
                  'lookfor': 'groupcp.php"', 'ip': '195.82.146.214'},
-              'gelbooru.com':
-                {'host': 'gelbooru.com', 'urn': '/index.php?page=post&s=view&id=1989610',
-                 'lookfor': 'Gelbooru- Image View', 'ip': '5.178.68.100'},
              }
              
 google_dns = '8.8.4.4'
@@ -114,7 +110,6 @@ def _get_a_record(site, timeout=3, dnsserver=None):
 
     if dnsserver:
         resolver.nameservers = [dnsserver]
-        
     result = []
     while len(resolver.nameservers):
         try:
@@ -133,7 +128,6 @@ def _get_a_record(site, timeout=3, dnsserver=None):
 
         except dns.exception.Timeout:
             resolver.nameservers.remove(resolver.nameservers[0])
-
     # If all the requests failed
     return False
 
@@ -280,7 +274,6 @@ def test_dns():
         print(colored("Проблема с разрешением DNS на системном, либо google сервере",'red'))
         input("Нажмите Enter чтобы выйти...")
         exit(1)
-    
     if (remote_dns):
         # Если получили IP с сервера, используем их
         dns_records = remote_dns
@@ -354,6 +347,10 @@ class WorkerThread(Thread):
             return
         if not re.findall(r'%s'%self.regexp,page):
             opend.append(nexturl)
+            a = nexturl.split("/")[2]
+            f = open ('./opend/'+a,'w')
+            f.write(page)
+            f.close
             print(" [f] Открылся: "+nexturl)
     elif nextproto in ['newcamd525','mgcamd525']:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -378,8 +375,8 @@ def getdomain(url, proto):
     return [res[0], '80']
 
 
-test_dns()
-test_dpi()
+#test_dns()
+#test_dpi()
 input("Нажмите Enter чтобы продолжить...")
 
 if f=='':
@@ -419,14 +416,14 @@ else:
     dump = ET.parse('dump.xml')
     root = dump.getroot()
     for content in root:
-        #if content.attrib['id']!=str(76487):
+        #if content.attrib['id']!=str(102031):
         #    continue
         ips = domains = urls = urldomain = port = proto = None
         ips = content.findall('ip')
         if not ips:
             print(colored("Can't find IP of content with id = " + content.attrib['id'],'red'))
-            input("Нажмите Enter чтобы выйти...")
-            exit(6)
+            #input("Нажмите Enter чтобы выйти...")
+            #exit(6)
         domains = content.findall('domain')
         urls = content.findall('url')
         if urls:
@@ -434,7 +431,7 @@ else:
                 proto = getproto(url.text)
                 urldomain, port = getdomain(url.text,proto)
                 url_list.append([proto]+[url.text]+[True])
-                if substitute:
+                if substitute and ips:
                     for ip in ips:
                         url_list.append([proto]+[domain2ip_url(url.text, ip.text, port, proto)]+[False])
         else:
@@ -442,7 +439,7 @@ else:
                 for domain in domains:
                     url_list.append(['http',"http://" + domain.text]+[True])
                     url_list.append(['https',"https://" + domain.text]+[True])
-            if substitute:
+            if substitute and ips:
                 for ip in ips:
                     url_list.append(['http',"http://" + ip.text]+[False])
                     url_list.append(['https',"https://" + ip.text]+[False])
